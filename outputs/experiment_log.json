@@ -1,0 +1,62 @@
+[
+  {
+    "timestamp": "2026-03-15 18:16",
+    "experiment": "final_4model_pseudo_target_enc",
+    "n_folds": 10,
+    "model_oof_scores": {
+      "xgb": 0.7986,
+      "lgb": 0.7985,
+      "cat": 0.7938,
+      "mlp": 0.7691
+    },
+    "ensemble_oof_f1": 0.7993,
+    "optimized_oof_f1": 0.8009,
+    "lb_f1": 0.8919,
+    "notes": "Best submission \u2014 10-fold CV, SMOTE minority, target encoding for country, pseudo-labeling at 0.95 threshold, 4-model weighted ensemble (XGB + LGB + CAT + MLP), threshold optimization"
+  },
+  {
+    "timestamp": "2026-03-15 19:04",
+    "experiment": "final_4model_pseudo_target_enc",
+    "n_folds": 10,
+    "model_oof_scores": {
+      "xgb": 0.5907,
+      "lgb": 0.6698,
+      "cat": 0.7699,
+      "mlp": 0.7074
+    },
+    "ensemble_oof_f1": 0.7211,
+    "optimized_oof_f1": 0.7615,
+    "lb_f1": 0.8919,
+    "notes": "Best submission \u2014 10-fold CV, SMOTE minority, target encoding for country, pseudo-labeling at 0.95 threshold, 4-model weighted ensemble (XGB + LGB + CAT + MLP), threshold optimization"
+  },
+  {
+    "timestamp": "2026-03-15 19:28",
+    "experiment": "final_4model_pseudo_target_enc",
+    "n_folds": 10,
+    "model_oof_scores": {
+      "xgb": 0.7986,
+      "lgb": 0.7985,
+      "cat": 0.7938,
+      "mlp": 0.7691
+    },
+    "ensemble_oof_f1": 0.7993,
+    "optimized_oof_f1": 0.8009,
+    "lb_f1": 0.8919,
+    "notes": "Best submission \u2014 10-fold CV, SMOTE minority, target encoding for country, pseudo-labeling at 0.95 threshold, 4-model weighted ensemble (XGB + LGB + CAT + MLP), threshold optimization"
+  },
+  {
+    "timestamp": "2026-03-15 21:45",
+    "experiment": "final_4model_pseudo_target_enc",
+    "n_folds": 10,
+    "model_oof_scores": {
+      "xgb": 0.7984,
+      "lgb": 0.7957,
+      "cat": 0.7932,
+      "mlp": 0.7771
+    },
+    "ensemble_oof_f1": 0.8012,
+    "optimized_oof_f1": 0.8025,
+    "lb_f1": 0.8919,
+    "notes": "Best submission \u2014 10-fold CV, SMOTE minority, target encoding for country, pseudo-labeling at 0.95 threshold, 4-model weighted ensemble (XGB + LGB + CAT + MLP), threshold optimization"
+  }
+]
