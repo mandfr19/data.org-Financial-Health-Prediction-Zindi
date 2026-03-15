@@ -1,3 +1,4 @@
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mandfr19/fhi-prediction-zindi/blob/main/notebook.ipynb)
 # Financial Health Index (FHI) Prediction
 ## Zindi Competition — Southern African SME Financial Health Classification
 
