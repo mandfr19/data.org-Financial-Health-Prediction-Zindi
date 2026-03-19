@@ -123,7 +123,7 @@ Feature Engineering
       ▼
 SMOTE Oversampling (per fold, training data only)
       │  - strategy="minority" — oversample High to match Medium count
-      │  - Validation fold always uses original unaugmented data
+      │  - Validation fold always uses original, unaugmented data
       │
       ▼
 5-Fold Stratified CV — Optuna Tuned OOF Training (50 trials each)
@@ -168,7 +168,7 @@ Submission
 
 ## Models
 
-All models trained with 5-fold stratified CV, SMOTE per fold, and Optuna hyperparameter tuning (50 trials each).
+All models were trained with 5-fold stratified CV, SMOTE per fold, and Optuna hyperparameter tuning (50 trials each).
 
 ### XGBoost
 - Histogram-based algorithm (`tree_method="hist"`)
@@ -210,7 +210,7 @@ Key milestones across the competition:
 | 4-model + pseudo-labeling + target encoding | 0.8049 | 0.8919 | — |
 | Final + fintech/insurance features | 0.8069 | 0.8969 | — |
 
-The private LB winner was the simpler 3-model ensemble. The experiments that improved the public LB score — pseudo-labeling, target encoding, additional feature groups — did not generalize to the private test set.
+The private LB winner was the simpler 3-model ensemble. The experiments that improved the public LB score — pseudo-labeling, target encoding, and additional feature groups — did not generalize to the private test set.
 
 ---
 
@@ -287,7 +287,7 @@ Based on post-competition analysis and insights from other participants:
 
 ## Competition Details
 
-- **Platform:** Zindi
+- **Platform:** [Zindi](https://zindi.africa/competitions/dataorg-financial-health-prediction-challenge)
 - **Task:** Multiclass classification (Low / Medium / High)
 - **Metric:** Macro F1 Score
 - **Data:** Survey data from Eswatini, Lesotho, Zimbabwe, Malawi
