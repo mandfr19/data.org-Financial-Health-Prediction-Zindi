@@ -53,7 +53,7 @@ Participants build machine learning models to predict FHI using socio-economic a
 | File | Description | Private LB |
 |------|-------------|------------|
 | [`winning_solution.ipynb`](./winning_solution.ipynb) | **Main solution** — clean preprocessing, feature engineering, 3-model ensemble (XGB + LGB + CAT), Optuna tuning, SMOTE, threshold optimization | **0.8860** ✅ |
-| [`notebook.ipynb`](./notebook.ipynb) | Extended experiments — pseudo-labeling, target encoding, MLP ensemble, additional feature engineering | 0.8919 (public) |
+| [`experiments.ipynb`](./experiments.ipynb) | Extended experiments — pseudo-labeling, target encoding, MLP ensemble, additional feature engineering | 0.8919 (public) |
 
 > The winning private LB solution is the simpler 3-model ensemble in `winning_solution.ipynb`. The experiments notebook achieved a higher public LB score (0.8919) through additional techniques, but the simpler pipeline generalized better to the private test set — a key lesson about overfitting to the public leaderboard.
 
