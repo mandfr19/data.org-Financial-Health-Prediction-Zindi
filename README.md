@@ -1,6 +1,14 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mandfr19/fhi-prediction-zindi/blob/main/notebook.ipynb)
 # Financial Health Index (FHI) Prediction
 ## Zindi Competition — Southern African SME Financial Health Classification
+
+---
+
+## Results
+
+| Split | Score |
+|-------|-------|
+| Public Leaderboard | 0.8847 |
+| **Private Leaderboard** | **0.8860** ✅ |
 
 ---
 
@@ -9,8 +17,6 @@
 This repository contains the solution for the **Financial Health Index Prediction Challenge**, a Zindi competition focused on predicting the financial well-being of small and medium-sized enterprises (SMEs) across four Southern African countries: Eswatini, Lesotho, Zimbabwe, and Malawi.
 
 The task is a **multiclass classification problem** — predicting whether a business has **Low**, **Medium**, or **High** financial health — evaluated using **Macro F1 Score**.
-
-**Best Leaderboard Score: 0.8969**
 
 ---
 
@@ -27,6 +33,32 @@ Participants build machine learning models to predict FHI using socio-economic a
 
 ---
 
+## Repository Structure
+
+```
+├── winning_solution.ipynb    # ⭐ Main solution — best private LB (0.8860)
+├── experiments.ipynb         # Experimental notebook — additional approaches explored
+├── README.md
+├── VariableDefinitions.csv
+├── requirements.txt
+├── .gitignore
+└── outputs/
+    ├── submission_final.csv
+    ├── experiment_log.json
+    └── README.md
+```
+
+### Solution Files
+
+| File | Description | Private LB |
+|------|-------------|------------|
+| `winning_solution.ipynb` | **Main solution** — clean preprocessing, feature engineering, 3-model ensemble (XGB + LGB + CAT), Optuna tuning, SMOTE, threshold optimization | **0.8860** ✅ |
+| `experiments.ipynb` | Extended experiments — pseudo-labeling, target encoding, MLP ensemble, additional feature engineering | 0.8919 (public) |
+
+> The winning private LB solution is the simpler 3-model ensemble in `winning_solution.ipynb`. The experiments notebook achieved a higher public LB score (0.8919) through additional techniques, but the simpler pipeline generalized better to the private test set — a key lesson about overfitting to the public leaderboard.
+
+---
+
 ## Dataset
 
 | Split | Rows | Features |
@@ -40,203 +72,145 @@ Participants build machine learning models to predict FHI using socio-economic a
 - Country (Eswatini, Lesotho, Malawi, Zimbabwe)
 
 **Target distribution (train):**
-- Low: 6,280 (65.3%) — dominant class
-- Medium: 2,868 (29.8%)
-- High: 470 (4.9%) — minority class, hardest to predict
+
+| Class | Count | Percentage |
+|-------|-------|------------|
+| Low | 6,280 | 65.3% |
+| Medium | 2,868 | 29.8% |
+| High | 470 | 4.9% |
+
+The severe class imbalance — particularly the minority High class — was the primary challenge throughout the competition.
 
 ---
 
 ## Data Quality Issues Found
 
-A thorough data audit revealed several encoding issues requiring targeted fixes:
+A thorough data audit revealed several encoding issues that were silently corrupting features before any modeling. Fixing these was the single most impactful change in the entire competition.
 
 | Issue | Description | Fix Applied |
 |-------|-------------|-------------|
 | Apostrophe variants | Curly `'` (Unicode 8217) vs straight `'` (Unicode 39) caused silent NaN mapping across 9 status columns | Normalized to straight apostrophe |
 | Mixed values | `current_problem_cash_flow` contained `"0"` alongside `"Yes"`/`"No"` | Mapped `"0"` → `"No"` |
-| Don't know variants | Multiple inconsistent representations across columns | Unified to single `-1` encoding |
+| Don't know variants | Multiple inconsistent representations (`"Don't know"`, `"Don't Know"`, `"Don?t know"`, etc.) | Unified to single `-1` encoding |
 | Invisible unicode | `perception_insurance_important` contained zero-width character `\u200e` | Stripped via whitespace normalization |
-| Case inconsistency | `"Don't Know"` vs `"Don't know"` (capital K) | Unified during normalization |
-| Near-constant features | `uses_informal_lender` had near-zero variance due to encoding errors | Fixed by apostrophe normalization |
+| Age placeholders | `owner_age` values of 99 and 103 are survey refusal codes, not real ages | Mapped to NaN then imputed |
+| Inconsistent records | `keeps_financial_records` had `"Yes, always"` and `"Yes, sometimes"` | Unified to `"Yes"` |
 
 ---
 
-## Solution Pipeline
+## Winning Solution Pipeline (`winning_solution.ipynb`)
 
 ```
-Raw Data
-    │
-    ▼
+Raw Survey Data
+      │
+      ▼
 Data Cleaning & Preprocessing
-    │  - Apostrophe normalization
-    │  - Status columns → ordinal (_ord suffix)
-    │  - Binary Yes/No → 1/0/-1
-    │  - Country → one-hot
-    │
-    ▼
+      │  - Apostrophe normalization (curly → straight)
+      │  - Standardize all "don't know" variants → -1
+      │  - Status columns → ordinal integers
+      │  - Binary Yes/No → 1/0/-1
+      │  - Country → one-hot encoding
+      │
+      ▼
 Feature Engineering
-    │  - Log-transformed financials
-    │  - Financial ratios (profit proxy, expense ratio)
-    │  - Business age in total months
-    │  - Missing value flags
-    │  - Financial product counts
-    │  - Fintech adoption score
-    │  - Insurance sophistication score
-    │  - Formal vs informal finance ratio
-    │  - Business vs personal income ratio
-    │
-    ▼
-Target Encoding for Country
-    │  - Replaces one-hot with P(High | country)
-    │  - Out-of-fold encoding prevents leakage
-    │
-    ▼
-SMOTE Oversampling (per fold)
-    │  - strategy="minority" — oversample High to match Medium
-    │  - Applied on training fold only
-    │
-    ▼
-10-Fold Stratified CV — OOF Training
-    │  - XGBoost
-    │  - LightGBM
-    │  - CatBoost
-    │  - MLP (scaled features)
-    │
-    ▼
-Pseudo-Labeling
-    │  - Threshold = 0.95 confidence
-    │  - High-confidence test predictions added to training
-    │  - All models retrained on augmented dataset
-    │
-    ▼
+      │  - Log-transformed financials (handles extreme currency skew)
+      │  - Financial ratios (profit proxy, expense ratio, income efficiency)
+      │  - Business age in total months
+      │  - Missing value flags (15 high-missingness columns)
+      │  - Count of active financial products
+      │  - Positive attitude score
+      │
+      ▼
+SMOTE Oversampling (per fold, training data only)
+      │  - strategy="minority" — oversample High to match Medium count
+      │  - Validation fold always uses original unaugmented data
+      │
+      ▼
+5-Fold Stratified CV — Optuna Tuned OOF Training (50 trials each)
+      │  - XGBoost
+      │  - LightGBM
+      │  - CatBoost
+      │
+      ▼
 Weighted Ensemble
-    │  - Weights proportional to OOF F1 score per model
-    │
-    ▼
-Threshold Optimization
-    │  - Per-class thresholds via Nelder-Mead (scipy.optimize)
-    │  - Optimizes directly for Macro F1
-    │
-    ▼
-Final Submission
+      │  - Weights proportional to each model's OOF F1 score
+      │
+      ▼
+Threshold Optimization (Nelder-Mead via scipy.optimize)
+      │  - Per-class probability multipliers optimized directly for Macro F1
+      │
+      ▼
+Submission
 ```
 
 ---
 
 ## Feature Engineering
 
-### Original Features (after preprocessing)
-- 10 status columns → ordinal encoded with `_ord` suffix
-- 19 binary columns → 1/0/-1
-- 4 country one-hot columns (later target encoded)
-- 6 numeric columns
-
-### Engineered Features
-
 | Feature | Description |
 |---------|-------------|
-| `log_personal_income` | Log1p transform of personal income |
-| `log_business_expenses` | Log1p transform of business expenses |
-| `log_business_turnover` | Log1p transform of business turnover |
+| `log_personal_income` | Log1p transform — handles extreme income skew |
+| `log_business_expenses` | Log1p transform of expenses |
+| `log_business_turnover` | Log1p transform of turnover |
 | `profit_proxy` | Turnover minus expenses |
 | `log_profit_proxy` | Log1p of profit proxy |
 | `expense_ratio` | Expenses / (turnover + ε) |
 | `income_to_turnover` | Personal income / (turnover + ε) |
 | `income_to_expenses` | Personal income / (expenses + ε) |
 | `total_business_months` | Business age years × 12 + months |
-| `missing_*` | Binary flags for 15 high-missingness columns |
+| `missing_*` (×15) | Binary flags for high-missingness columns |
 | `n_financial_products` | Count of currently active financial products |
-| `attitude_score` | Sum of positive owner attitudes |
-| `business_vs_personal_ratio` | Turnover / (personal income + 1) |
-| `log_business_vs_personal_ratio` | Log1p of above |
-| `fintech_adoption_score` | Count of active digital financial tools |
-| `insurance_sophistication_score` | Count of active insurance products |
-| `formal_credit_score` | Count of active formal credit products |
-| `informal_finance_reliance` | Count of active informal finance products |
-| `formal_vs_informal_ratio` | Formal credit / (informal + 1) |
-| `overall_financial_access` | Weighted composite of fintech + insurance + formal credit |
+| `attitude_score` | Sum of positive owner attitudes (0–3) |
 
-### Target Encoding for Country
-Country is highly predictive of FHI — Eswatini has 11.5% High businesses vs Lesotho's 0.3%. One-hot country columns are replaced with `P(High | country)` computed out-of-fold to prevent leakage.
+**Key insight — Missing Value Flags:** Many columns have 20–47% missingness due to country-level survey differences. The pattern of who didn't answer is itself highly informative — `missing_business_age_years` was consistently the second most important SHAP feature, reflecting that Lesotho respondents have systematic missingness which correlates strongly with Low FHI.
 
 ---
 
 ## Models
 
-All models trained with:
-- 10-fold stratified CV
-- SMOTE minority oversampling per fold
-- Early stopping on validation loss
+All models trained with 5-fold stratified CV, SMOTE per fold, and Optuna hyperparameter tuning (50 trials each).
 
 ### XGBoost
-```python
-n_estimators=800, learning_rate=0.03, max_depth=6,
-min_child_weight=5, subsample=0.8, colsample_bytree=0.7,
-gamma=0.01, reg_alpha=0.1, reg_lambda=1.0,
-tree_method="hist", device="cuda"
-```
+- Histogram-based algorithm (`tree_method="hist"`)
+- Balanced sample weights computed after SMOTE (not before — class distribution changes after resampling)
+- Search space: n_estimators, learning_rate, max_depth, min_child_weight, subsample, colsample_bytree, gamma, reg_alpha, reg_lambda
 
 ### LightGBM
-```python
-n_estimators=800, learning_rate=0.03, num_leaves=80,
-max_depth=8, min_child_samples=20, subsample=0.8,
-colsample_bytree=0.7, reg_alpha=0.1, reg_lambda=1.0,
-class_weight="balanced"
-```
+- Leaf-wise tree growth with `class_weight="balanced"`
+- Early stopping via LGB callbacks (API differs from XGBoost)
+- Search space: n_estimators, learning_rate, num_leaves, max_depth, min_child_samples, subsample, colsample_bytree, reg_alpha, reg_lambda
 
 ### CatBoost
-```python
-iterations=800, learning_rate=0.03, depth=6,
-l2_leaf_reg=1.0, bagging_temperature=0.5,
-border_count=128, auto_class_weights="Balanced"
-```
-
-### MLP
-```python
-hidden_layer_sizes=(256, 128, 64), activation="relu",
-solver="adam", alpha=0.001, max_iter=500,
-early_stopping=True, validation_fraction=0.1
-# Note: requires StandardScaler preprocessing
-# class_weight not supported — imbalance handled via SMOTE
-```
+- `auto_class_weights="Balanced"` for imbalance handling
+- `eval_metric="TotalF1"` — optimizes directly for the competition metric during training
+- Search space: iterations, learning_rate, depth, l2_leaf_reg, bagging_temperature, random_strength
 
 ---
 
-## Pseudo-Labeling
+## Ensemble & Threshold Optimization
 
-High-confidence test predictions (max probability ≥ 0.95) are added to the training set before final retraining. This leverages unlabeled test data to improve generalization.
+**Weighted average** where each model's weight is proportional to its OOF F1 score, followed by per-class threshold optimization using Nelder-Mead:
 
-**Key findings from experimentation:**
-- Threshold 0.95 was optimal — lower thresholds (0.93) added noisy labels, higher thresholds (0.97, 0.98) added too few samples
-- Iterative pseudo-labeling (2 rounds) hurt performance due to compounding label errors — single round only
+$$\hat{y} = \arg\max_k \frac{p_k}{t_k}$$
 
----
-
-## Ensemble Strategy
-
-Weighted average ensemble where each model's weight is proportional to its OOF F1 score. Per-class probability thresholds optimized via Nelder-Mead to maximize Macro F1.
-
-**Strategies tested and rejected:**
-- Simple average — marginal difference
-- Rank averaging — hurt performance
-- Power weighted average — negligible difference
-- Calibrated weighted average — hurt performance
-- Tree models only (no MLP) — hurt performance
+where $p_k$ is the predicted probability for class $k$ and $t_k$ is the learned threshold. This approach added +0.0086 macro F1 over plain argmax at zero retraining cost.
 
 ---
 
 ## Experiment Tracking
 
-All experiments tracked with OOF F1 and Leaderboard F1:
+Key milestones across the competition:
 
-| Approach | OOF F1 | LB F1 |
-|----------|--------|-------|
-| Baseline XGBoost (clean data) | 0.7915 | 0.8703 |
-| Baseline + SMOTE + thresholds | 0.7989 | 0.8764 |
-| Baseline + SMOTE + Optuna | 0.8033 | 0.8839 |
-| 3-model ensemble + SMOTE | 0.8073 | 0.8821 |
-| 4-model + pseudo + target enc | 0.8049 | 0.8919 |
-| **4-model + pseudo + target enc + new features** | **0.8069** | **0.8969** ✅ |
+| Approach | OOF F1 | Public LB | Private LB |
+|----------|--------|-----------|------------|
+| Baseline XGBoost (clean data) | 0.7915 | 0.8703 | — |
+| Baseline + SMOTE + thresholds | 0.7989 | 0.8764 | — |
+| Clean XGB + SMOTE + Optuna | 0.8033 | 0.8839 | — |
+| **3-model ensemble + SMOTE + Optuna + thresholds** | **0.8082** | **0.8847** | **0.8860** ✅ |
+| 4-model + pseudo-labeling + target encoding | 0.8049 | 0.8919 | — |
+| Final + fintech/insurance features | 0.8069 | 0.8969 | — |
+
+The private LB winner was the simpler 3-model ensemble. The experiments that improved the public LB score — pseudo-labeling, target encoding, additional feature groups — did not generalize to the private test set.
 
 ---
 
@@ -244,41 +218,37 @@ All experiments tracked with OOF F1 and Leaderboard F1:
 
 | Strategy | Impact |
 |----------|--------|
-| Apostrophe normalization | ✅ Unlocked true signal in 9 status columns |
-| Feature engineering (log transforms, ratios) | ✅ Positive |
+| Full data cleaning (apostrophe fix + encoding fixes) | ✅ Most impactful single change |
+| Log-transformed financials | ✅ Positive |
+| Missing value flags | ✅ Positive — missingness pattern is informative |
 | SMOTE minority oversampling | ✅ Positive |
-| Target encoding for country | ✅ Positive |
-| Pseudo-labeling at 0.95 threshold | ✅ Biggest single jump |
-| MLP as 4th ensemble member | ✅ Small positive diversity gain |
-| 10-fold CV | ✅ More stable OOF estimates |
-| Financial access features (fintech, insurance, formal/informal) | ✅ Positive |
+| Optuna hyperparameter tuning | ✅ Positive |
+| Weighted ensemble (3 models) | ✅ Positive |
+| Threshold optimization | ✅ Positive — free +0.0086 F1 |
 
-## What Did Not Work
+## What Did Not Generalize to Private LB
 
-| Strategy | Impact |
-|----------|--------|
-| Country-normalized financial features | ❌ Added noise |
-| Interaction features (age × turnover etc.) | ❌ Added noise |
-| Meta-learner stacking | ❌ Underfit |
-| Iterative pseudo-labeling (round 2) | ❌ Compounded errors |
-| Tighter pseudo threshold (0.97, 0.98) | ❌ Too few samples |
-| Probability calibration | ❌ Models already well-calibrated |
-| Rank averaging ensemble | ❌ Lost probability information |
+| Strategy | Public LB Effect | Lesson |
+|----------|-----------------|--------|
+| Pseudo-labeling | +0.0072 public | Overfit to public test set |
+| Target encoding for country | +0.0072 public | One-hot encoding was sufficient |
+| Fintech/insurance feature group | +0.0122 public | Added noise on private data |
+| MLP as 4th ensemble member | Small positive | Tree models were sufficient |
+
+The core lesson: on survey-based tabular data with high missingness, clean preprocessing and well-tuned tree models generalize better than complex feature engineering and semi-supervised techniques.
 
 ---
 
 ## Reproducibility Note
 
-Results are hardware-dependent for XGBoost:
+XGBoost results are hardware-dependent:
 
-| Hardware | LB F1 |
-|----------|-------|
-| GPU (`device="cuda"`) | **0.8969** |
-| CPU (`device="cpu"`) | ~0.8940 |
+| Hardware | Effect |
+|----------|--------|
+| GPU (`device="cuda"`) | Best results — used for the winning submission |
+| CPU (`device="cpu"`) | ~0.003 lower |
 
-LightGBM, CatBoost, and MLP are unaffected by hardware. The difference arises from floating point parallelization in XGBoost's `hist` tree method — GPU and CPU use different numerical precision which produces different split points.
-
-To reproduce the best result, run on a machine with a GPU and set `device="cuda"` in XGBoost params.
+The difference arises from floating-point parallelization in XGBoost's `hist` method — GPU and CPU use different numerical precision which produces different split points. LightGBM and CatBoost are unaffected by hardware. `winning_solution.ipynb` was run on a Kaggle T4 GPU.
 
 ---
 
@@ -295,49 +265,23 @@ xgboost
 catboost
 optuna
 scipy
-shap
-matplotlib
 ```
 
 Install with:
 ```bash
-pip install numpy pandas scikit-learn imbalanced-learn lightgbm xgboost catboost optuna scipy shap matplotlib
-```
-
----
-
-## Repository Structure
-
-```
-├── notebook.ipynb          # Final solution notebook (13 cells)
-├── outputs/
-│   ├── oof_xgb.npy         # XGBoost OOF probabilities
-│   ├── oof_lgb.npy         # LightGBM OOF probabilities
-│   ├── oof_cat.npy         # CatBoost OOF probabilities
-│   ├── oof_mlp.npy         # MLP OOF probabilities
-│   ├── oof_xgb_pl.npy      # XGBoost OOF (pseudo-labeled)
-│   ├── oof_lgb_pl.npy      # LightGBM OOF (pseudo-labeled)
-│   ├── oof_cat_pl.npy      # CatBoost OOF (pseudo-labeled)
-│   ├── oof_mlp_pl.npy      # MLP OOF (pseudo-labeled)
-│   ├── submission_final.csv
-│   └── experiment_log.json
-├── Train.csv
-├── Test.csv
-├── SampleSubmission.csv
-├── VariableDefinitions.csv
-└── README.md
+pip install numpy pandas scikit-learn imbalanced-learn lightgbm xgboost catboost optuna scipy
 ```
 
 ---
 
 ## Future Improvements
 
-Based on techniques shared by top competitors:
+Based on post-competition analysis and insights from other participants:
 
-- **NFKC Unicode normalization** — more comprehensive than targeted apostrophe fix, catches all hidden character variants in one pass
-- **Multi-seed ensembling** — averaging predictions across seeds (e.g. 1, 78, 93, 225) reduces variance from random initialization
+- **NFKC Unicode normalization** — more comprehensive than our targeted apostrophe fix, catches all hidden character variants in one pass using `unicodedata.normalize('NFKC', x)`
+- **Multi-seed ensembling** — averaging predictions across multiple random seeds (e.g. 1, 78, 93, 225) reduces variance from initialization, typically worth +0.003 to +0.008
 - **Ordinal ensembling** — mapping predictions to [0, 1, 2] and averaging ordinally before rounding respects the natural Low < Medium < High ordering
-- **Optuna tuning with 200+ trials** — we used fixed params; tuned params could add +0.005 to +0.010
+- **More Optuna trials (200+)** — 50 trials per model leaves room for better hyperparameter search
 
 ---
 
@@ -346,6 +290,7 @@ Based on techniques shared by top competitors:
 - **Platform:** Zindi
 - **Task:** Multiclass classification (Low / Medium / High)
 - **Metric:** Macro F1 Score
-- **Countries:** Eswatini, Lesotho, Zimbabwe, Malawi
-- **Best public LB score:** 0.9211
-- **Our best LB score:** 0.8969
+- **Data:** Survey data from Eswatini, Lesotho, Zimbabwe, Malawi
+- **Best public LB (competition):** 0.9211
+- **Our best public LB:** 0.8969
+- **Our best private LB:** 0.8860
